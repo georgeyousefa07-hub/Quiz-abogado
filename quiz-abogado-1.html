@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>¿Qué tipo de abogado eres?</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --gold: #c9a84c;
+    --gold-light: #e8c96a;
+    --red: #c0392b;
+    --teal: #1a7a6e;
+    --cream: #f0ead6;
+    --text: #d4cfc4;
+    --muted: #6b6760;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  #app {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  /* ── SCREEN TRANSITIONS ── */
+  .screen { display: none; animation: fadeIn 0.5s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+  /* ── INTRO ── */
+  .intro-eyebrow {
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+  }
+
+  .intro-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.4rem, 7vw, 4rem);
+    font-weight: 900;
+    line-height: 1.05;
+    color: var(--cream);
+    margin-bottom: 0.5rem;
+  }
+
+  .intro-title span {
+    color: var(--gold);
+    font-style: italic;
+  }
+
+  .intro-sub {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.7;
+    margin: 1.5rem 0 2.5rem;
+    max-width: 480px;
+    letter-spacing: 0.04em;
+  }
+
+  .divider {
+    width: 48px;
+    height: 2px;
+    background: var(--gold);
+    margin: 1.5rem 0;
+  }
+
+  /* Lawyer cards preview */
+  .lawyers-preview {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 2.5rem;
+  }
+
+  .lawyer-chip {
+    border: 1px solid var(--border);
+    padding: 0.7rem 0.5rem;
+    text-align: center;
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .lawyer-chip::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .lawyer-chip:hover { color: var(--cream); border-color: var(--gold); }
+  .lawyer-chip .chip-icon { font-size: 1.4rem; display: block; margin-bottom: 0.4rem; }
+
+  /* ── BUTTON ── */
+  .btn {
+    display: inline-block;
+    padding: 0.9rem 2.2rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: #0a0a0f;
+    font-weight: 500;
+  }
+
+  .btn-primary:hover {
+    background: var(--gold-light);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(201,168,76,0.3);
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+  }
+
+  .btn-outline:hover { background: var(--gold); color: #0a0a0f; }
+
+  /* ── QUIZ ── */
+  .progress-bar-wrap {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 3rem;
+  }
+
+  .progress-seg {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    transition: background 0.4s;
+  }
+
+  .progress-seg.done { background: var(--gold); }
+  .progress-seg.active { background: var(--gold-light); }
+
+  .q-counter {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    margin-bottom: 0.8rem;
+  }
+
+  .q-text {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.2rem, 4vw, 1.7rem);
+    font-weight: 700;
+    color: var(--cream);
+    line-height: 1.35;
+    margin-bottom: 2.2rem;
+  }
+
+  .options {
+    display: grid;
+    gap: 10px;
+  }
+
+  .option {
+    border: 1px solid var(--border);
+    padding: 1rem 1.3rem;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text);
+    text-align: left;
+    background: var(--surface);
+    transition: all 0.18s;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    letter-spacing: 0.03em;
+    line-height: 1.5;
+  }
+
+  .option:hover {
+    border-color: var(--gold);
+    color: var(--cream);
+    background: #16161f;
+    transform: translateX(4px);
+  }
+
+  .option.selected {
+    border-color: var(--gold);
+    background: rgba(201, 168, 76, 0.08);
+    color: var(--cream);
+  }
+
+  .option-letter {
+    font-size: 0.65rem;
+    color: var(--gold);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── RESULT ── */
+  .result-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .result-emoji {
+    font-size: 3.5rem;
+    flex-shrink: 0;
+  }
+
+  .result-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .result-name {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.6rem, 5vw, 2.4rem);
+    font-weight: 900;
+    color: var(--cream);
+    line-height: 1.1;
+  }
+
+  .result-quote {
+    font-style: italic;
+    font-size: 0.7rem;
+    color: var(--gold);
+    margin-top: 0.4rem;
+    letter-spacing: 0.05em;
+  }
+
+  .result-desc {
+    font-size: 0.78rem;
+    line-height: 1.8;
+    color: var(--text);
+    margin: 1.5rem 0 2rem;
+    padding: 1.5rem;
+    border-left: 3px solid var(--gold);
+    background: var(--surface);
+  }
+
+  .traits {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 2.5rem;
+  }
+
+  .trait {
+    border: 1px solid var(--border);
+    padding: 0.8rem 1rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
+  .trait strong {
+    display: block;
+    color: var(--gold);
+    margin-bottom: 0.2rem;
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .result-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  /* corner decoration */
+  .corner-deco {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: var(--border);
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- INTRO -->
+  <div class="screen active" id="screen-intro">
+    <p class="intro-eyebrow">⚖ Test de Personalidad Legal</p>
+    <h1 class="intro-title">¿Qué <span>abogado</span><br>hay en ti?</h1>
+    <div class="divider"></div>
+    <p class="intro-sub">10 preguntas. Sin respuestas correctas. Solo la verdad sobre cómo enfrentas la ley, el poder y la justicia.</p>
+
+    <div class="lawyers-preview">
+      <div class="lawyer-chip"><span class="chip-icon">🚗</span>Mickey Haller</div>
+      <div class="lawyer-chip"><span class="chip-icon">💼</span>Harvey Specter</div>
+      <div class="lawyer-chip"><span class="chip-icon">⚖️</span>Maggie McPherson</div>
+      <div class="lawyer-chip"><span class="chip-icon">📺</span>Saul Goodman</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="startQuiz()">COMENZAR EL TEST →</button>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="screen" id="screen-quiz">
+    <div class="progress-bar-wrap" id="progress"></div>
+    <p class="q-counter" id="q-counter"></p>
+    <p class="q-text" id="q-text"></p>
+    <div class="options" id="options"></div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="screen" id="screen-result">
+    <div class="result-header">
+      <div class="result-emoji" id="r-emoji"></div>
+      <div>
+        <p class="result-label">Eres el arquetipo de...</p>
+        <h2 class="result-name" id="r-name"></h2>
+        <p class="result-quote" id="r-quote"></p>
+      </div>
+    </div>
+    <div class="result-desc" id="r-desc"></div>
+    <div class="traits" id="r-traits"></div>
+    <div class="result-actions">
+      <button class="btn btn-primary" onclick="restartQuiz()">VOLVER A JUGAR</button>
+    </div>
+  </div>
+
+</div>
+
+<p class="corner-deco">Quiz Legal © 2026</p>
+
+<script>
+// ── LAWYERS ──
+const lawyers = {
+  mickey: {
+    name: "Mickey Haller",
+    emoji: "🚗",
+    quote: '"La mejor defensa es una buena historia."',
+    desc: "Eres el abogado de las calles, el que conoce tanto la ley como los callejones que la rodean. Operas desde tu Lincoln, literalmente en movimiento, y conviertes cada sala de juicio en un teatro donde tú eres el director. No te preocupa el juicio moral: te preocupa ganar para tu cliente. Tu mayor herramienta no es el Código Penal, sino tu instinto para leer a las personas y crear narrativas irresistibles.",
+    traits: [
+      { label: "Estilo", val: "Carismático y teatral" },
+      { label: "Arma", val: "Narrativa y persuasión" },
+      { label: "Campo", val: "Derecho Penal" },
+      { label: "Zona", val: "En el límite de las reglas" },
+    ]
+  },
+  harvey: {
+    name: "Harvey Specter",
+    emoji: "💼",
+    quote: '"No juego las probabilidades. Cambio el juego."',
+    desc: "Eres el tiburón corporativo de manual, pero con cerebro de estratega y actitud de leyenda. Antes de que el otro lado mueva ficha, tú ya tienes la partida ganada. Tu poder no está en gritar, sino en el silencio calculado, en el traje perfecto y en saber exactamente qué secreto usar y cuándo. La sala de juicios es tu último recurso: prefieres ganar antes de llegar.",
+    traits: [
+      { label: "Estilo", val: "Imperturbable y dominante" },
+      { label: "Arma", val: "Leverage y estrategia" },
+      { label: "Campo", val: "Corporativo / Litigación civil" },
+      { label: "Zona", val: "Negociación de alto riesgo" },
+    ]
+  },
+  maggie: {
+    name: "Maggie McPherson",
+    emoji: "⚖️",
+    quote: '"La justicia no es negociable."',
+    desc: "Eres el tipo de abogado que hace que el sistema funcione de verdad. No te mueve el dinero ni el espectáculo: te mueve la brújula moral. Donde otros ven zonas grises, tú ves blanco y negro. Tu reputación se construyó con cada caso difícil que tomaste cuando nadie más quería ensuciarse las manos con la verdad. McFierce no es un apodo, es una declaración de guerra contra la injusticia.",
+    traits: [
+      { label: "Estilo", val: "Directa e inflexible" },
+      { label: "Arma", val: "Integridad y preparación" },
+      { label: "Campo", val: "Fiscalía / Derecho Penal público" },
+      { label: "Zona", val: "La línea que no se cruza" },
+    ]
+  },
+  saul: {
+    name: "Saul Goodman",
+    emoji: "📺",
+    quote: '"S\'all good, man!"',
+    desc: "Eres el abogado más creativo de la sala. Mientras otros buscan la puerta, tú ya estás dentro por la ventana. Tienes un talento especial para encontrar vacíos legales donde nadie más mira, para reinventarte cada vez que la vida te pone contra las cuerdas y para defender a personas que el sistema ignora. Ético al cien por cien, tal vez no; pero leal a tu cliente y brillantemente ingenioso, siempre.",
+    traits: [
+      { label: "Estilo", val: "Creativo y camaleónico" },
+      { label: "Arma", val: "Vacíos legales y teatro" },
+      { label: "Campo", val: "Derecho del ciudadano común" },
+      { label: "Zona", val: "Donde la ley tiene grietas" },
+    ]
+  }
+};
+
+// ── QUESTIONS ──
+// Each option: [text, lawyer_key]
+const questions = [
+  {
+    text: "Un cliente llega a tu oficina a medianoche con un problema urgente y complicado. ¿Tu primera reacción?",
+    opts: [
+      ["Lo escucho desde el coche de camino al lugar. El movimiento me ayuda a pensar.", "mickey"],
+      ["Le hago esperar 10 minutos solo para establecer quién lleva el control.", "harvey"],
+      ["Enciendo la luz, saco el expediente y empiezo a buscar antecedentes. Sin atajos.", "maggie"],
+      ["Le pregunto cuánto dinero tiene y empiezo a improvisar un plan mientras habla.", "saul"],
+    ]
+  },
+  {
+    text: "¿Cómo describes tu relación con las reglas?",
+    opts: [
+      ["Las conozco tan bien que sé exactamente hasta dónde puedo doblarlas.", "mickey"],
+      ["Las reglas son para los abogados que no saben ganar sin ellas.", "harvey"],
+      ["Son la razón por la que existe la justicia. No se negocian.", "maggie"],
+      ["Son orientativas. Siempre hay un artículo 47-B que nadie ha leído.", "saul"],
+    ]
+  },
+  {
+    text: "Estás perdiendo un caso importante. ¿Qué haces?",
+    opts: [
+      ["Cambio la narrativa. Le doy al jurado algo más interesante en qué pensar.", "mickey"],
+      ["Ya tenía un plan B. Y un plan C. Esto estaba previsto.", "harvey"],
+      ["Presento más evidencia. Si tengo razón, la verdad siempre encuentra su camino.", "maggie"],
+      ["Presento una moción que nadie esperaba basada en una ley de 1987 que nadie recuerda.", "saul"],
+    ]
+  },
+  {
+    text: "¿Qué es lo que más valoras en un acuerdo?",
+    opts: [
+      ["Que mi cliente salga libre o con la menor condena posible.", "mickey"],
+      ["Que el rival sepa que perdió desde el primer apretón de manos.", "harvey"],
+      ["Que sea justo para ambas partes y refuerce el Estado de Derecho.", "maggie"],
+      ["Que mi cliente salga con algo en el bolsillo y yo también.", "saul"],
+    ]
+  },
+  {
+    text: "Tu estilo de vestir en el tribunal sería...",
+    opts: [
+      ["Casual pero calculado. Quiero parecer accesible, no intimidante.", "mickey"],
+      ["Traje a medida, gemelos, zapatos Oxford. El poder se proyecta antes de abrir la boca.", "harvey"],
+      ["Formal y sobrio. La imagen comunica seriedad e institucionalidad.", "maggie"],
+      ["Llamativo. Un toque de color. Si me recuerdan, ya gané algo.", "saul"],
+    ]
+  },
+  {
+    text: "¿Cómo manejas la presión?",
+    opts: [
+      ["Pongo música, conduzco por la ciudad y dejo que el subconsciente trabaje.", "mickey"],
+      ["No la siento. La presión es para los que no están preparados.", "harvey"],
+      ["La canalizo en horas extra de investigación. La preparación elimina la ansiedad.", "maggie"],
+      ["La convierto en energía creativa. Mis mejores ideas nacen cuando estoy acorralado.", "saul"],
+    ]
+  },
+  {
+    text: "Si pudieras elegir en qué tipo de caso trabajar, sería...",
+    opts: [
+      ["Defensa criminal de un caso imposible que nadie más quiere tomar.", "mickey"],
+      ["Una fusión corporativa multimillonaria donde el poder real está en las cláusulas pequeñas.", "harvey"],
+      ["Perseguir a una red de corrupción institucional que lleva años impune.", "maggie"],
+      ["Ayudar a un pequeño empresario al que el sistema aplastó injustamente.", "saul"],
+    ]
+  },
+  {
+    text: "Tu cliente te acaba de confesar que mintió en el estrado. ¿Qué haces?",
+    opts: [
+      ["Evalúo el daño y busco la manera de controlar la narrativa sin comprometer el caso.", "mickey"],
+      ["Le dejo claro que si vuelve a hacerlo, se queda sin abogado. El control lo tengo yo.", "harvey"],
+      ["Le informo que no puedo seguir representándolo de esa manera. Mi integridad no se vende.", "maggie"],
+      ["Hago que el rival parezca menos creíble que mi cliente. Táctica de distracción.", "saul"],
+    ]
+  },
+  {
+    text: "¿Cómo construyes tu reputación?",
+    opts: [
+      ["Con resultados. Mis clientes hablan de mí en los pasillos de los juzgados.", "mickey"],
+      ["Con miedo. Cuando el otro lado oye mi nombre, ya han perdido un poco de confianza.", "harvey"],
+      ["Con consistencia. Cada caso ganado con honestidad es un ladrillo en la pared.", "maggie"],
+      ["Con creatividad. Mis casos terminan en anécdotas que se cuentan por años.", "saul"],
+    ]
+  },
+  {
+    text: "¿Cuál es tu lema de vida?",
+    opts: [
+      ["Todo el mundo merece la mejor defensa posible, sin importar lo que haya hecho.", "mickey"],
+      ["Segundo lugar es el primer perdedor.", "harvey"],
+      ["La justicia no es perfecta, pero alguien tiene que defenderla.", "maggie"],
+      ["Mientras haya un resquicio legal, hay esperanza.", "saul"],
+    ]
+  }
+];
+
+// ── STATE ──
+let current = 0;
+let scores = { mickey: 0, harvey: 0, maggie: 0, saul: 0 };
+const letters = ['A', 'B', 'C', 'D'];
+
+function startQuiz() {
+  scores = { mickey: 0, harvey: 0, maggie: 0, saul: 0 };
+  current = 0;
+  showScreen('screen-quiz');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = questions[current];
+
+  // Progress
+  const prog = document.getElementById('progress');
+  prog.innerHTML = questions.map((_, i) => {
+    let cls = 'progress-seg';
+    if (i < current) cls += ' done';
+    if (i === current) cls += ' active';
+    return `<div class="${cls}"></div>`;
+  }).join('');
+
+  document.getElementById('q-counter').textContent = `Pregunta ${current + 1} de ${questions.length}`;
+  document.getElementById('q-text').textContent = q.text;
+
+  const optContainer = document.getElementById('options');
+  optContainer.innerHTML = '';
+  q.opts.forEach(([text, key], i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option';
+    btn.innerHTML = `<span class="option-letter">${letters[i]}</span><span>${text}</span>`;
+    btn.onclick = () => pickAnswer(key, btn);
+    optContainer.appendChild(btn);
+  });
+}
+
+function pickAnswer(key, btn) {
+  // Prevent double click
+  document.querySelectorAll('.option').forEach(o => o.onclick = null);
+  btn.classList.add('selected');
+  scores[key]++;
+
+  setTimeout(() => {
+    current++;
+    if (current < questions.length) {
+      renderQuestion();
+    } else {
+      showResult();
+    }
+  }, 380);
+}
+
+function showResult() {
+  const winner = Object.entries(scores).sort((a,b) => b[1]-a[1])[0][0];
+  const l = lawyers[winner];
+
+  document.getElementById('r-emoji').textContent = l.emoji;
+  document.getElementById('r-name').textContent = l.name;
+  document.getElementById('r-quote').textContent = l.quote;
+  document.getElementById('r-desc').textContent = l.desc;
+
+  const traitsEl = document.getElementById('r-traits');
+  traitsEl.innerHTML = l.traits.map(t =>
+    `<div class="trait"><strong>${t.label}</strong>${t.val}</div>`
+  ).join('');
+
+  showScreen('screen-result');
+}
+
+function restartQuiz() {
+  scores = { mickey: 0, harvey: 0, maggie: 0, saul: 0 };
+  current = 0;
+  showScreen('screen-intro');
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+</script>
+</body>
+</html>
